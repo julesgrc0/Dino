@@ -88,7 +88,7 @@ class Dino(GameItem):
         self.dino_index = 0
 
         if len(args) >= 1:
-            if os.path.exists("../assets/DinoSprites - {0}.png".format(args[0])):
+            if os.path.exists("./assets/DinoSprites - {0}.png".format(args[0])):
                 i = 0
                 for t in self.dino_types:
                     if t == args[0]:
@@ -97,11 +97,11 @@ class Dino(GameItem):
             elif int(args[0]) >= 0 and int(args[0]) < 4:
                 self.dino_index = int(args[0])
 
-        self.decors = image.load("../assets/Decors.png")
+        self.decors = image.load("./assets/Decors.png")
         self.backgrounds = [
-            image.load("../assets/BG1.png"),
-            image.load("../assets/BG2.png"),
-            image.load("../assets/BG3.png")
+            image.load("./assets/BG1.png"),
+            image.load("./assets/BG2.png"),
+            image.load("./assets/BG3.png")
         ]
 
         self.texture_index = 0
@@ -134,8 +134,8 @@ class Dino(GameItem):
         mouse.set_visible(0)
 
         self.load_dino(image.load(
-            "../assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
-        self.load_tiles(image.load("../assets/Tileset.png"))
+            "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
+        self.load_tiles(image.load("./assets/Tileset.png"))
      
     def load_tiles(self,image):
         for x in range(8):
@@ -191,7 +191,7 @@ class Dino(GameItem):
                             self.dino_index = len(self.dino_types)-1
 
                         self.load_dino(image.load(
-                            "../assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
+                            "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
                 if evt.key == pygame.K_RIGHT:
                     if not self.start:
                         self.show_name = True
@@ -202,7 +202,7 @@ class Dino(GameItem):
                             self.dino_index = 0
 
                         self.load_dino(image.load(
-                            "../assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
+                            "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
 
         self.update_player(delta)
 

@@ -21,7 +21,7 @@ class GameItem:
         renderer.blit(surf, rect)
 
     def text(self,renderer,value,position,size,color = (0,0,0),center=True):
-        tFont = font.Font("../font/default.ttf", size) 
+        tFont = font.Font("./font/default.ttf", size) 
         text = tFont.render(value, True, color)
         
         textRect = text.get_rect()
