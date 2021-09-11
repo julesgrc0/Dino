@@ -54,7 +54,7 @@ class GameInput:
                         self.keys.append([evt.key, False])
                 if evt.type == pygame.KEYDOWN:
                     if not self.setkey_value(evt.key, True):
-                        self.keys.append([evt.key,True])
+                        self.keys.append([evt.key, True])
         
     def ismove(self):
         if self.save:
@@ -65,7 +65,6 @@ class GameInput:
                     return True
 
             return False
-
 
     def ispress(self,key):
         if self.save:

@@ -3,11 +3,12 @@ import sys
 import os
 import random
 import pygame
+from pymitter import EventEmitter
 from pygame import draw, display, image, event, mixer, font, mouse
 
 WIDTH = 400
 HEIGHT = 400
-
+gameDinoEvent = EventEmitter()
 
 class DinoStates:
     IDLE_BASE = 0
@@ -89,6 +90,7 @@ class Dino(GameItem):
 
         self.dino_types = ["doux", "mort", "tard", "vita"]
         self.dino_index = 0
+        self.mario_mode = False
 
         if len(args) >= 1:
             if os.path.exists("./assets/DinoSprites - {0}.png".format(args[0])):
@@ -107,17 +109,25 @@ class Dino(GameItem):
             image.load("./assets/BG3.png")
         ]
 
-        self.texture_index = 0
-        self.texture_time = 0
-
         self.player_textures = []
         self.tile_textures = []
 
         self.score = 0
         self.coin = 0
         self.state = DinoStates.IDLE
+        self.state_base = DinoStates.IDLE_BASE
 
         self.start = False
+
+        self.init_animation = GameAnimation()
+        self.init_animation.max_duration = 320
+        self.init_animation.vars.append(True)
+
+        self.player_animation = GameAnimation()
+        self.player_animation.max_duration = 10
+        self.player_animation.vars.append(self.state_base)
+        self.player_animation.vars.append(self.state)
+        self.player_animation.vars.append(self.state_base)
 
         self.icon_animation = GameAnimation()
         self.icon_animation.max_duration = 10
@@ -126,8 +136,8 @@ class Dino(GameItem):
         self.icon_animation.vars.append(DinoStates.RUN_BASE)
 
         self.start_animation = GameAnimation()
-        self.start_animation.max_duration = 50
-        self.start_animation.vars.append(4)
+        self.start_animation.max_duration = 95
+        self.start_animation.vars.append(4 if not self.mario_mode else 3)
         self.start_animation.vars.append(False)
 
         self.name_animation = GameAnimation()
@@ -147,6 +157,16 @@ class Dino(GameItem):
             "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
         self.load_tiles(image.load("./assets/Tileset.png"))
 
+        self.playintro_sound()
+        self.select_sound = mixer.Sound("./music/select.mp3")
+
+    def setmario_mode(self):
+        self.mario_mode = True
+        self.start_animation.vars[0] = 3
+        coin = mixer.Sound("./music/coin.mp3")
+        coin.set_volume(0.5)
+        coin.play()
+
     def bool_animation_end(self, gameaniamtion):
         gameaniamtion.vars[0] = not gameaniamtion.vars[0]
         return True
@@ -163,6 +183,10 @@ class Dino(GameItem):
             gameaniamtion.vars[0] = gameaniamtion.vars[2]
 
         return True
+
+    def playintro_sound(self):
+        s_intro = mixer.Sound("./music/intro.wav")
+        s_intro.play()
 
     def load_tiles(self, image):
         for x in range(8):
@@ -192,47 +216,63 @@ class Dino(GameItem):
         pygame.display.set_icon(self.player_textures[0])
 
     def update(self, delta, input):
-        if input.ismove():
-            if not self.start:
-                self.spacebase_animation.vars[0] = True
-                self.spacebase_animation.time = 0
+        if not self.init_animation.vars[0]:
+            if input.ismove():
+                if not self.start:
+                    self.spacebase_animation.vars[0] = True
+                    self.spacebase_animation.time = 0
 
-        if input.ispress(pygame.K_DOWN):
-            if self.start:
-                print("down")
+            if input.ispress(pygame.K_DOWN):
+                if self.start:
+                    print("down")
 
-        if input.ispress(pygame.K_SPACE):
-            if not self.start:
-                self.start = True
-                self.start_animation.vars[1] = True
-            else:
-                pass
-        
-        if input.ispress(pygame.K_LEFT):
-            if not self.start:
-                self.name_animation.vars[0] = True
-                self.name_animation.time = 0
+            if input.ispress(pygame.K_m):
+                if not self.start:
+                    self.setmario_mode()
 
-                self.dino_index -= 1
-                if self.dino_index < 0:
-                    self.dino_index = len(self.dino_types)-1
+            if input.ispress(pygame.K_SPACE):
+                if not self.start:
+                    self.start = True
+                    self.start_animation.vars[1] = True
+                    
+                    if self.mario_mode:
+                        mario_start = mixer.Sound("./music/start.wav")
+                        mario_start.set_volume(0.5)
+                        mario_start.play()
+                    else:
+                        mixer.Sound("./music/go.mp3").play()
 
-                self.load_dino(image.load(
-                            "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
+                    gameDinoEvent.emit("game.inputsave")
+                else:
+                    pass
+            
+            if input.ispress(pygame.K_LEFT):
+                if not self.start:
+                    self.name_animation.vars[0] = True
+                    self.name_animation.time = 0
 
-        if input.ispress(pygame.K_RIGHT):
-            if not self.start:
-                self.name_animation.vars[0] = True
-                self.name_animation.time = 0
+                    self.dino_index -= 1
+                    if self.dino_index < 0:
+                        self.dino_index = len(self.dino_types)-1
 
-                self.dino_index += 1
-                if self.dino_index >= len(self.dino_types):
-                    self.dino_index = 0
+                    self.select_sound.play()
+                    self.load_dino(image.load(
+                                "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
 
-                self.load_dino(image.load(
-                    "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
+            if input.ispress(pygame.K_RIGHT):
+                if not self.start:
+                    self.name_animation.vars[0] = True
+                    self.name_animation.time = 0
 
-        self.update_player(delta)
+                    self.dino_index += 1
+                    if self.dino_index >= len(self.dino_types):
+                        self.dino_index = 0
+
+                    self.select_sound.play()
+                    self.load_dino(image.load(
+                        "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
+
+            self.update_player(delta)
 
         if self.spacebase_animation.vars[0]:
             self.spacebase_animation.update(
@@ -240,6 +280,9 @@ class Dino(GameItem):
 
         if self.name_animation.vars[0]:
             self.name_animation.update(delta, self.bool_animation_end)
+
+        if self.init_animation.vars[0]:
+            self.init_animation.update(delta, self.bool_animation_end)
 
         # print("\r UPS: {0}".format(
         #     int(1/(delta if delta != 0 else 1))), end='')
@@ -266,16 +309,10 @@ class Dino(GameItem):
             else:
                 self.start_animation.update(delta, self.int_animation_min)
         else:
-            self.texture_time += delta * 100
-            if self.texture_time >= 10:
-                self.texture_time = 0
-                self.texture_index += 1
-
-                if self.texture_index >= DinoStates.IDLE:
-                    self.texture_index = DinoStates.IDLE_BASE
+            self.player_animation.update(delta,self.int_animation_add)
 
     def draw_menu(self, renderer):
-        self.texture(renderer, self.player_textures[self.texture_index], [
+        self.texture(renderer, self.player_textures[self.player_animation.vars[0]], [
             self.x, self.y], [100, 100])
 
         for x in range((WIDTH+100) // 70):
@@ -300,27 +337,33 @@ class Dino(GameItem):
                 170, 150], 25, (30, 30, 30), True)
 
     def draw(self, delta, renderer):
-        self.texture(renderer, self.backgrounds[0], [0, 0], [400, 400])
-        self.texture(renderer, self.backgrounds[1], [0, 0], [400, 400])
-        self.texture(renderer, self.backgrounds[2], [0, 0], [400, 400])
-
-        if self.start:
-            if not self.start_animation.vars[1]:
-                self.text(renderer, "Score {0}".format(self.score), [
-                    10, 10], 25, (30, 30, 30), False)
-                self.text(renderer, "Coin {0}".format(self.coin), [
-                    10, 40], 20, (30, 30, 30), False)
-
-            else:
-                text_value = str(self.start_animation.vars[0])
-                if self.start_animation.vars[0] == 0:
-                    text_value = "GO"
-                elif self.start_animation.vars[0] == 4:
-                    text_value = "READY"
-                self.text(renderer, text_value, [
-                          200, 200], 90, (30, 30, 30))
+        if self.init_animation.vars[0]:
+            color_value = (self.init_animation.time * 255 / self.init_animation.max_duration)
+            renderer.fill((color_value, color_value, color_value))
+            self.text(renderer, "Dino", [
+                200, 200], 150, (255, 255, 255))
         else:
-            self.draw_menu(renderer)
+            self.texture(renderer, self.backgrounds[0], [0, 0], [400, 400])
+            self.texture(renderer, self.backgrounds[1], [0, 0], [400, 400])
+            self.texture(renderer, self.backgrounds[2], [0, 0], [400, 400])
+
+            if self.start:
+                if not self.start_animation.vars[1]:
+                    self.text(renderer, "Score {0}".format(self.score), [
+                        10, 10], 25, (30, 30, 30), False)
+                    self.text(renderer, "Coin {0}".format(self.coin), [
+                        10, 40], 20, (30, 30, 30), False)
+
+                else:
+                    text_value = str(self.start_animation.vars[0])
+                    if self.start_animation.vars[0] == 0:
+                        text_value = "GO"
+                    elif self.start_animation.vars[0] == 4:
+                        text_value = "READY"
+                    self.text(renderer, text_value, [
+                            200, 200], 90, (30, 30, 30))
+            else:
+                self.draw_menu(renderer)
 
 
 class DinoController(GameController):
@@ -337,6 +380,11 @@ def main(args):
     os.system('cls')
 
     game.input.save = False
+
+    @gameDinoEvent.on("game.inputsave")
+    def onsave():
+        game.input.save = not game.input.save
+
     game.add_item(Dino(args))
     game.add_controller(DinoController())
 
