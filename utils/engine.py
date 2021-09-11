@@ -5,6 +5,78 @@ import time
 import sys
 import os
 
+class GameAnimation:
+
+    def __init__(self):
+        self.time = 0
+        self.max_duration = 0
+        self.vars = []
+
+    def update(self,delta,callback):
+        self.time += delta * 100
+
+        if self.time >= self.max_duration:
+            self.time = 0
+            if callback != None:
+                return callback(self)
+        return False
+    
+class GameInput:
+
+    def __init__(self):
+        self.keys = []
+        self.move = False
+        self.events = None
+        self.save = True
+    
+
+    def setkey_value(self,key,value):
+        i = 0
+        find = False
+        for k in self.keys:
+            if k[0] == key:
+                self.keys[i][1] = value
+                find = True
+                break
+            i += 1
+        return find
+
+    def update(self,events):
+        self.events = events
+        if self.save:
+            self.move = False
+            for evt in self.events:
+                if evt.type == pygame.MOUSEMOTION:
+                    self.move = True
+
+                if evt.type == pygame.KEYUP:
+                    if not self.setkey_value(evt.key,False):
+                        self.keys.append([evt.key, False])
+                if evt.type == pygame.KEYDOWN:
+                    if not self.setkey_value(evt.key, True):
+                        self.keys.append([evt.key,True])
+        
+    def ismove(self):
+        if self.save:
+            return self.move
+        else:
+            for evt in self.events:
+                if evt.type == pygame.MOUSEMOTION:
+                    return True
+
+            return False
+
+
+    def ispress(self,key):
+        if self.save:
+            for k in self.keys:
+                if k[0] == key:
+                    return k[1]
+        else:
+            for evt in self.events:
+                if evt.type == pygame.KEYDOWN and key == evt.key:
+                    return True
+        return False
 
 class GameItem:
 
@@ -33,7 +105,7 @@ class GameItem:
 
         renderer.blit(text, textRect)
 
-    def update(self, delta, events) -> None:
+    def update(self, delta, input) -> None:
         pass
 
     def draw(self, delta, render) -> None:
@@ -53,6 +125,8 @@ class GameMain:
         self.gameControllers = []
         self.threads = []
         self.active = True
+
+        self.input = GameInput()
         
         pygame.init()
         mixer.init()
@@ -79,6 +153,8 @@ class GameMain:
             current_time = 0
             while self.active:
                 events = event.get()
+                self.input.update(events)
+
                 for evt in events:
                     if evt.type == pygame.QUIT:
                         self.active = False
@@ -97,7 +173,7 @@ class GameMain:
                     if not item.alive:
                         self.gameItems.remove(index)
                     else:
-                        item.update(deltatime, events)
+                        item.update(deltatime, self.input)
                         index+=1
 
                 self.renderer.fill((0, 0, 0))
@@ -114,6 +190,8 @@ class GameMain:
 
         while self.active:
             events = event.get()
+            self.input.update(events)
+
             for evt in events:
                 if evt.type == pygame.QUIT:
                     self.active = False
@@ -130,7 +208,7 @@ class GameMain:
                 if not item.alive:
                     self.gameItems.remove(index)
                 else:
-                    item.update(deltatime, events)
+                    item.update(deltatime, self.input)
                     index+=1
 
     def draw(self):
