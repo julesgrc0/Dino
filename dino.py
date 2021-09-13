@@ -121,6 +121,8 @@ class Dino(GameItem):
 
         self.score = 0
         self.coin = 0
+        self.game_speed = 350
+        self.game_time = 0
         self.state = DinoStates.IDLE
         self.state_base = DinoStates.IDLE_BASE
 
@@ -160,6 +162,7 @@ class Dino(GameItem):
 
         self.move_x = 0
         self.move_back_x = 0
+        self.move_back_x2 = 0
 
         self.tilesize = 40
         self.margin = 150
@@ -326,12 +329,22 @@ class Dino(GameItem):
         if self.start:
             self.update_icon(delta)
             if not self.start_animation.vars[1]:
+                self.game_time += delta * 10
+                if self.game_time >= 80:
+                    self.score += 1
+                    self.game_time = 0
+                    self.game_speed += 50
 
-                self.move_back_x -= 350 * (delta/10)
+               
+
+                self.move_x -= self.game_speed * (delta/10)
+                self.move_back_x -= self.game_speed * (1/2) * (delta/10)
+                self.move_back_x2 -= self.game_speed * (3/4) * (delta/10)
+
                 if self.move_back_x <= -WIDTH:
                     self.move_back_x = 0
-
-                self.move_x -= 250 * (delta/10)
+                if self.move_back_x2 <= -WIDTH:
+                    self.move_back_x2 = 0
                 if self.move_x <= -WIDTH:
                     self.move_x = 0
 
@@ -387,18 +400,18 @@ class Dino(GameItem):
                 200, 200], 150, (255, 255, 255))
         else:
             self.texture(renderer, self.backgrounds[0], [0, 0], [400, 400])
-            self.texture(renderer, self.backgrounds[1], [
-                         0 + self.move_x, 0], [400, 400])
-            self.texture(renderer, self.backgrounds[2], [
-                         0 + self.move_x, 0], [400, 400])
-            
-
+           
             if self.start:
                 if not self.start_animation.vars[1]:
                     self.texture(renderer, self.backgrounds[1], [
-                        WIDTH + self.move_x, 0], [400, 400])
+                        0 + self.move_back_x, 0], [400, 400])
+                    self.texture(renderer, self.backgrounds[1], [
+                        WIDTH + self.move_back_x, 0], [400, 400])
+
                     self.texture(renderer, self.backgrounds[2], [
-                        WIDTH + self.move_x, 0], [400, 400])
+                        WIDTH + self.move_back_x2, 0], [400, 400])
+                    self.texture(renderer, self.backgrounds[2], [
+                        0 + self.move_back_x2, 0], [400, 400])
 
                     self.text(renderer, "Score {0}".format(self.score), [
                         10, 10], 25, (30, 30, 30), False)
@@ -407,6 +420,11 @@ class Dino(GameItem):
 
                     self.draw_game(renderer)
                 else:
+                    self.texture(renderer, self.backgrounds[1], [
+                        0, 0], [400, 400])
+                    self.texture(renderer, self.backgrounds[2], [
+                        0, 0], [400, 400])
+
                     text_value = str(self.start_animation.vars[0])
                     if self.start_animation.vars[0] == 0:
                         text_value = "GO"
@@ -415,6 +433,11 @@ class Dino(GameItem):
                     self.text(renderer, text_value, [
                         200, 200], 90, (30, 30, 30))
             else:
+                self.texture(renderer, self.backgrounds[1], [
+                    0, 0], [400, 400])
+                self.texture(renderer, self.backgrounds[2], [
+                    0, 0], [400, 400])
+
                 self.draw_menu(renderer)
 
 
