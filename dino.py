@@ -169,6 +169,8 @@ class Dino(GameItem):
         self.player_size = 80
         self.player_margin = 10
 
+        self.running = False
+
         mouse.set_visible(0)
 
         self.load_dino(image.load(
@@ -244,6 +246,7 @@ class Dino(GameItem):
     def startgame(self):
         self.start = True
         self.start_animation.vars[1] = True
+        self.running = True
 
         self.change_state(DinoStates.RUN, DinoStates.RUN_BASE)
 
@@ -335,8 +338,6 @@ class Dino(GameItem):
                     self.game_time = 0
                     self.game_speed += 50
 
-               
-
                 self.move_x -= self.game_speed * (delta/10)
                 self.move_back_x -= self.game_speed * (1/2) * (delta/10)
                 self.move_back_x2 -= self.game_speed * (3/4) * (delta/10)
@@ -400,7 +401,7 @@ class Dino(GameItem):
                 200, 200], 150, (255, 255, 255))
         else:
             self.texture(renderer, self.backgrounds[0], [0, 0], [400, 400])
-           
+
             if self.start:
                 if not self.start_animation.vars[1]:
                     self.texture(renderer, self.backgrounds[1], [
@@ -441,13 +442,56 @@ class Dino(GameItem):
                 self.draw_menu(renderer)
 
 
+class Box(GameItem):
+    def __init__(self):
+        GameItem.__init__(self)
+        self.sprite = image.load("./assets/Decors.png")
+        self.x = WIDTH
+        self.y = HEIGHT - 240
+
+    def draw(self, delta, renderer):
+        self.texture(renderer,self.sprite,[self.x,self.y],[100,100])
+
+    def update(self, delta,input):
+        pass
+
 class DinoController(GameController):
     def __init__(self):
         GameController.__init__(self)
+        self.time = 0
 
-    def update(self, delta, items):
+    def update(self, delta: float, items):
         tmp = items.copy()
+        dino = tmp[0]
+
+        # self.time += delta * 100
+        # if self.time >= 100:
+        #     self.time = 0
+        #     if len(tmp) <= 3:
+        #         tmp.append(Box())
+
+        # if dino.running:
+        #     dino_sprite = dino.player_textures[dino.player_animation.vars[0]]
+            
+        #     index = 0
+        #     for box in tmp[1:]:
+        #         if self.aabb(dino_sprite,box.sprite):
+        #             dino.alive = False
+        #             break
+        #         else:
+        #             box.x -= dino.game_speed *  (delta/10)
+        #             if box.x + box.sprite.get_width() <= 0:
+        #                 del tmp[index]
+        #                 index -= 1
+
+        #                 tmp.append(Box())
+        #         index += 1   
         return tmp
+
+    def aabb(self,s1,s2):
+        return False
+
+        
 
 
 def main(args):
