@@ -169,7 +169,9 @@ class Dino(GameItem):
         self.player_size = 80
         self.player_margin = 10
 
-       
+        self.rnd_box = []
+        self.move_x_val = 0
+
         self.tree = Tree()
 
         mouse.set_visible(0)
@@ -248,6 +250,16 @@ class Dino(GameItem):
         self.start = True
         self.start_animation.vars[1] = True
 
+        for i in range(10):
+            self.rnd_box.append([
+                (WIDTH/self.tilesize) +
+                random.randint(0, round(WIDTH/self.tilesize)*2),
+                random.randint(0, round(self.margin/self.tilesize)-1)
+                ])
+
+            self.rnd_box[-1][0] *= self.tilesize
+            self.rnd_box[-1][1] *= self.tilesize
+
         self.change_state(DinoStates.RUN, DinoStates.RUN_BASE)
 
         if self.mario_mode:
@@ -298,6 +310,24 @@ class Dino(GameItem):
             self.before_start(delta, input)
 
             if self.start:
+                max_x = -(self.tilesize*2)
+                for i in self.rnd_box:
+                    max_x = max(i[0], max_x)
+                    i[0] -= self.move_x_val
+
+                if max_x+self.tilesize <= 0:
+                    self.rnd_box.clear()
+
+                    for i in range(10):
+                        self.rnd_box.append([
+                            (WIDTH//self.tilesize) +
+                            random.randint(0, (WIDTH//self.tilesize)*2),
+                            random.randint(0, (self.margin//self.tilesize))
+                        ])
+
+                        self.rnd_box[-1][0] *= self.tilesize
+                        self.rnd_box[-1][1] *= self.tilesize
+
                 if input.ispress(pygame.K_UP) or input.ispress(pygame.K_SPACE):
                     pass
 
@@ -341,7 +371,9 @@ class Dino(GameItem):
                     self.game_time = 0
                     self.game_speed += 50
 
-                self.move_x -= self.game_speed * (delta/10)
+                self.move_x_val = self.game_speed * (delta/10)
+                self.move_x -= self.move_x_val
+                
                 self.move_back_x -= self.game_speed * (1/2) * (delta/10)
                 self.move_back_x2 -= self.game_speed * (3/4) * (delta/10)
 
@@ -384,14 +416,18 @@ class Dino(GameItem):
                 170, 150], 25, (30, 30, 30), True)
 
     def draw_game(self, renderer,delta):
-        for x in range(round(WIDTH/self.tilesize)*2):
+        for x in range((WIDTH//self.tilesize)*2):
             self.texture(renderer, self.tile_textures[TileIndex.GRASS], [
                 x * self.tilesize + self.move_x, HEIGHT - self.margin], [self.tilesize, self.tilesize])
 
-            for y in range(round(self.margin/self.tilesize)):
+            for y in range((self.margin//self.tilesize)+1):
                 self.texture(renderer, self.tile_textures[TileIndex.GROUND_TEXTURED], [
                     x * self.tilesize + self.move_x, HEIGHT - (y * self.tilesize)], [self.tilesize, self.tilesize])
-       
+
+        for i in self.rnd_box:
+            self.texture(renderer, self.tile_textures[TileIndex.GROUND_TEXTURED_2], [
+                i[0], HEIGHT - i[1]], [self.tilesize, self.tilesize])
+    
         self.tree.draw(delta,renderer)
         self.texture(renderer, self.player_textures[self.player_animation.vars[0]], [
                      30, HEIGHT - (self.margin + self.player_size-self.player_margin)], [self.player_size, self.player_size])
