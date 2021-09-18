@@ -170,10 +170,12 @@ class Dino(GameItem):
         self.player_margin = 10
 
         self.rnd_box = []
+        self.rnd_box_max = 0
         self.move_x_val = 0
+        self.game_time = time.time()
 
         self.tree = Tree()
-        self.coins = [Coin()]
+        self.coins = [Coin(WIDTH*2), Coin(WIDTH)]
 
         mouse.set_visible(0)
 
@@ -248,15 +250,12 @@ class Dino(GameItem):
         self.start = True
         self.start_animation.vars[1] = True
 
-        for i in range(10):
+        for i in range(6):
             self.rnd_box.append([
-                (WIDTH/self.tilesize) +
-                random.randint(0, round(WIDTH/self.tilesize)*2),
-                random.randint(0, round(self.margin/self.tilesize)-1)
-                ])
-
-            self.rnd_box[-1][0] *= self.tilesize
-            self.rnd_box[-1][1] *= self.tilesize
+                int(random.randint(1, (WIDTH//self.tilesize))),
+                int(random.randint(0, (self.margin//self.tilesize)))
+            ])
+            self.rnd_box_max = max(self.rnd_box_max, self.rnd_box[-1][0])
 
         self.change_state(DinoStates.RUN, DinoStates.RUN_BASE)
 
@@ -308,24 +307,6 @@ class Dino(GameItem):
             self.before_start(delta, input)
 
             if self.start:
-                max_x = -(self.tilesize*2)
-                for i in self.rnd_box:
-                    max_x = max(i[0], max_x)
-                    i[0] -= self.move_x_val
-
-                if max_x+self.tilesize <= 0:
-                    self.rnd_box.clear()
-
-                    for i in range(10):
-                        self.rnd_box.append([
-                            (WIDTH//self.tilesize) +
-                            random.randint(0, (WIDTH//self.tilesize)*2),
-                            random.randint(0, (self.margin//self.tilesize))
-                        ])
-
-                        self.rnd_box[-1][0] *= self.tilesize
-                        self.rnd_box[-1][1] *= self.tilesize
-
                 if input.ispress(pygame.K_UP) or input.ispress(pygame.K_SPACE):
                     pass
 
@@ -361,9 +342,9 @@ class Dino(GameItem):
             self.update_icon(delta)
             if not self.start_animation.vars[1]:
 
-                self.tree.update(delta,self)
+                self.tree.update(delta, self)
                 for c in self.coins:
-                    c.update(delta,self)
+                    c.update(delta, self)
 
                 self.game_time += delta * 10
                 if self.game_time >= 80:
@@ -373,7 +354,7 @@ class Dino(GameItem):
 
                 self.move_x_val = self.game_speed * (delta/10)
                 self.move_x -= self.move_x_val
-                
+
                 self.move_back_x -= self.game_speed * (1/2) * (delta/10)
                 self.move_back_x2 -= self.game_speed * (3/4) * (delta/10)
 
@@ -385,6 +366,18 @@ class Dino(GameItem):
                     self.move_x = 0
 
                 self.player_animation.update(delta, self.int_animation_add)
+
+                i = 0
+                for c in self.coins:
+                    if self.x >= c.x:
+                        del self.coins[i]
+                        self.coin += 1
+                        i -= 1 
+                    i+=1
+
+                if len(self.coins) != 2:
+                    for k in range(2 - len(self.coins)):
+                        self.coins.append(Coin(random.randint(0,(WIDTH*3) + (self.game_speed * 2))))
             else:
                 self.start_animation.update(delta, self.int_animation_min)
         else:
@@ -415,7 +408,7 @@ class Dino(GameItem):
             self.text(renderer, self.dino_types[self.dino_index].capitalize(), [
                 170, 150], 25, (30, 30, 30), True)
 
-    def draw_game(self, renderer,delta):
+    def draw_game(self, renderer, delta):
         for x in range((WIDTH//self.tilesize)*2):
             self.texture(renderer, self.tile_textures[TileIndex.GRASS], [
                 x * self.tilesize + self.move_x, HEIGHT - self.margin], [self.tilesize, self.tilesize])
@@ -424,11 +417,20 @@ class Dino(GameItem):
                 self.texture(renderer, self.tile_textures[TileIndex.GROUND_TEXTURED], [
                     x * self.tilesize + self.move_x, HEIGHT - (y * self.tilesize)], [self.tilesize, self.tilesize])
 
-        for i in self.rnd_box:
-            self.texture(renderer, self.tile_textures[TileIndex.GROUND_TEXTURED_2], [
-                i[0], HEIGHT - i[1]], [self.tilesize, self.tilesize])
-    
-        self.tree.draw(delta,renderer)
+        for i in self.rnd_box:     
+            self.texture(renderer,
+                         self.tile_textures[TileIndex.GROUND_TEXTURED_2],
+                    [i[0] * self.tilesize + self.move_x,
+                        HEIGHT - (i[1] * self.tilesize)],
+                    [self.tilesize, self.tilesize])
+
+            self.texture(renderer,
+                self.tile_textures[TileIndex.GROUND_TEXTURED_2],
+                         [(i[0] + (WIDTH//self.tilesize)) * self.tilesize +
+                 self.move_x, HEIGHT - (i[1] * self.tilesize)],
+                [self.tilesize, self.tilesize])
+
+        self.tree.draw(delta, renderer)
         for c in self.coins:
             c.draw(delta, renderer)
 
@@ -462,7 +464,7 @@ class Dino(GameItem):
                     self.text(renderer, "Coin {0}".format(self.coin), [
                         10, 40], 20, (30, 30, 30), False)
 
-                    self.draw_game(renderer,delta)
+                    self.draw_game(renderer, delta)
                 else:
                     self.texture(renderer, self.backgrounds[1], [
                         0, 0], [400, 400])
@@ -484,36 +486,40 @@ class Dino(GameItem):
 
                 self.draw_menu(renderer)
 
+
 class Coin(GameItem):
-    def __init__(self):
+    def __init__(self,x):
         GameItem.__init__(self)
         tmp = image.load("./assets/MonedaD.png")
 
         self.coin_animation = GameAnimation()
         self.coin_animation.max_duration = 10
-        
+
         self.coin_animation.vars.append(0)
         self.coin_animation.vars.append(5)
         self.coin_animation.vars.append(0)
 
         self.y = HEIGHT - 190
-        self.x = WIDTH + random.randint(0, WIDTH)
+        self.x = WIDTH + random.randint(x, WIDTH+x)
 
         for x in range(5):
             sprite = pygame.Surface((16, 16))
             sprite = sprite.convert_alpha(sprite)
-            sprite.fill((0,0,0,0))
+            sprite.fill((0, 0, 0, 0))
             sprite.blit(tmp, (0, 0), (x * 16, 0, 16, 16))
             self.sprites.append(sprite)
 
+    def __str__(self): 
+        return "x={0} y={1} animation_index={2}".format(self.x, self.y, self.coin_animation.vars[0])
+
     def draw(self, delta, renderer):
         self.texture(renderer, self.sprites[self.coin_animation.vars[0]], [
-                     self.x , self.y], [30, 30])
+                     self.x, self.y], [30, 30])
 
-    def update(self, delta,dino):
+    def update(self, delta, dino):
         self.x -= dino.game_speed * (delta/10)
         if (self.x + self.sprites[0].get_width()*2) < 0:
-            self.x = WIDTH + random.randint(0, dino.game_speed * 100)
+            self.x = WIDTH + random.randint(0, dino.game_speed * 1.5)
 
         self.coin_animation.update(delta, self.int_animation_add)
 
@@ -524,7 +530,6 @@ class Coin(GameItem):
 
         return True
 
-            
 
 class Tree(GameItem):
     def __init__(self):
@@ -538,16 +543,14 @@ class Tree(GameItem):
         self.x = WIDTH + random.randint(0, 300)
         self.y = HEIGHT - 350
 
-
     def draw(self, delta, renderer):
         self.texture(renderer, self.sprite, [
-                     self.x , self.y], [200, 200])
+                     self.x, self.y], [200, 200])
 
-    def update(self, delta,dino):
+    def update(self, delta, dino):
         self.x -= dino.game_speed * (delta/10)
         if (self.x + self.sprite.get_width()*2) < 0:
-            self.x = WIDTH  + random.randint(0,300)
-
+            self.x = WIDTH + random.randint(0, 300)
 
 
 class GameConsole:
@@ -555,6 +558,7 @@ class GameConsole:
         self.game = game
         self.active = True
         self.livedebug = False
+        
 
     def run(self):
         threading.Thread(target=self.start).start()
@@ -570,14 +574,34 @@ class GameConsole:
             cmd = parts[0]
             if cmd == "echo":
                 for p in parts[1:]:
-                    print(p,end=' ')
+                    print(p, end=' ')
                 print("")
             elif cmd == "clear":
                 os.system('cls')
             elif cmd == "exit":
                 self.active = False
-            elif cmd == "select":
+            elif cmd == "var_names":
+                vars = [attr for attr in dir(dino) if not callable(
+                        getattr(dino, attr)) and not attr.startswith("__")]
+
+                for var in vars:
+                    print(var, type(getattr(dino, var)))
+            elif cmd == "var_live" and len(parts) >= 3:
+                self.live_duration( parts[1], float(parts[2]))
+            elif cmd == "var_get" and len(parts) >= 2:
+                name = parts[1]
+                try:
+                    value = getattr(dino, name)
+                    if type(value) is list:
+                        print("{0} (len={2}){1}".format(name, "".join(["\n"+str(item) for item in value]),len(value)))
+                    else:
+                        print("{0} = {1}".format(name, value))
+                except:
+                    print("\"{0}\" not found".format(name))
+            elif cmd == "menu_select":
                 print(dino.dino_types[dino.dino_index])
+            elif cmd == "time":
+                print("{0}s".format(time.time() - dino.game_time))
             elif cmd == "debug":
                 if len(parts) >= 2 and parts[1] == "live":
                     self.livedebug = True
@@ -590,16 +614,35 @@ class GameConsole:
                         t = type(value)
                         if t == int or t == str or t == float or t == bool:
                             print("{0} = {1}".format(var, value))
-    
+    def live_duration(self,name,s_duration):
+        dino = self.getDino()
+        start = time.time()
+        while True:
+            if time.time() - start > s_duration:
+                break
+
+            os.system("cls")
+            try:
+                value = getattr(dino, name)
+                if type(value) is list:
+                    print("{0} (len={2}){1}".format(name, "".join(
+                        ["\n"+str(item) for item in value]), len(value)))
+                else:
+                    print("{0} = {1}".format(name, value))
+            except:
+                print("\"{0}\" not found".format(name))
+                break
+            time.sleep(0.1)
     def live(self):
         dino = self.getDino()
-        vars = [attr for attr in dir(dino) if not callable(getattr(dino, attr)) and not attr.startswith("__")]
+        vars = [attr for attr in dir(dino) if not callable(
+            getattr(dino, attr)) and not attr.startswith("__")]
 
         valid = []
         for var in vars:
             t = type(getattr(dino, var))
             if t == int or t == str or t == float or t == bool:
-               valid.append(var)
+                valid.append(var)
 
         while self.active and self.game.active:
             os.system('cls')
@@ -610,7 +653,6 @@ class GameConsole:
             sys.stdout.flush()
 
             time.sleep(0.1)
-            
 
     def start(self):
         while self.active and self.game.active:
@@ -620,6 +662,7 @@ class GameConsole:
                 user_input = str(input(">"))
                 self.interaction(user_input)
 
+
 def main(args):
     game = GameMain(size=[WIDTH, HEIGHT], title="Dino Game")
     console = GameConsole(game)
@@ -627,7 +670,6 @@ def main(args):
     os.system('cls')
 
     game.input.save = False
-    
 
     @gameDinoEvent.on("game.inputsave")
     def onsave():
