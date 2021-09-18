@@ -173,6 +173,7 @@ class Dino(GameItem):
         self.move_x_val = 0
 
         self.tree = Tree()
+        self.coins = [Coin()]
 
         mouse.set_visible(0)
 
@@ -216,6 +217,7 @@ class Dino(GameItem):
             for y in range(6):
                 tmp = pygame.Surface((16, 16))
                 tmp = tmp.convert_alpha(tmp)
+                tmp.fill((0, 0, 0, 0))
                 tmp.blit(image, (0, 0), (x * 16, y * 16, 16, 16))
 
                 if tmp.get_at((8, 8)) != (0, 0, 0, 255):
@@ -227,12 +229,8 @@ class Dino(GameItem):
         for x in range(24):
             tmp = pygame.Surface((24, 24))
             tmp = tmp.convert_alpha(tmp)
+            tmp.fill((0, 0, 0, 0))
             tmp.blit(image, (0, 0), (x * 24, 0, 24, 24))
-
-            for x in range(24):
-                for y in range(24):
-                    if tmp.get_at((x, y)) == (0, 0, 0, 255):
-                        tmp.set_at((x, y), (0, 0, 0, 0))
 
             self.player_textures.append(tmp)
 
@@ -337,7 +335,7 @@ class Dino(GameItem):
                                           DinoStates.CROUCH_BASE)
                 elif self.state == DinoStates.CROUCH:
                     self.change_state(DinoStates.RUN, DinoStates.RUN_BASE)
-            
+
             self.update_player(delta)
 
         if self.spacebase_animation.vars[0]:
@@ -364,6 +362,8 @@ class Dino(GameItem):
             if not self.start_animation.vars[1]:
 
                 self.tree.update(delta,self)
+                for c in self.coins:
+                    c.update(delta,self)
 
                 self.game_time += delta * 10
                 if self.game_time >= 80:
@@ -429,6 +429,9 @@ class Dino(GameItem):
                 i[0], HEIGHT - i[1]], [self.tilesize, self.tilesize])
     
         self.tree.draw(delta,renderer)
+        for c in self.coins:
+            c.draw(delta, renderer)
+
         self.texture(renderer, self.player_textures[self.player_animation.vars[0]], [
                      30, HEIGHT - (self.margin + self.player_size-self.player_margin)], [self.player_size, self.player_size])
 
@@ -481,23 +484,60 @@ class Dino(GameItem):
 
                 self.draw_menu(renderer)
 
+class Coin(GameItem):
+    def __init__(self):
+        GameItem.__init__(self)
+        tmp = image.load("./assets/MonedaD.png")
+
+        self.coin_animation = GameAnimation()
+        self.coin_animation.max_duration = 10
+        
+        self.coin_animation.vars.append(0)
+        self.coin_animation.vars.append(5)
+        self.coin_animation.vars.append(0)
+
+        self.y = HEIGHT - 190
+        self.x = WIDTH + random.randint(0, WIDTH)
+
+        for x in range(5):
+            sprite = pygame.Surface((16, 16))
+            sprite = sprite.convert_alpha(sprite)
+            sprite.fill((0,0,0,0))
+            sprite.blit(tmp, (0, 0), (x * 16, 0, 16, 16))
+            self.sprites.append(sprite)
+
+    def draw(self, delta, renderer):
+        self.texture(renderer, self.sprites[self.coin_animation.vars[0]], [
+                     self.x , self.y], [30, 30])
+
+    def update(self, delta,dino):
+        self.x -= dino.game_speed * (delta/10)
+        if (self.x + self.sprites[0].get_width()*2) < 0:
+            self.x = WIDTH + random.randint(0, dino.game_speed * 100)
+
+        self.coin_animation.update(delta, self.int_animation_add)
+
+    def int_animation_add(self, gameaniamtion):
+        gameaniamtion.vars[0] += 1
+        if gameaniamtion.vars[0] >= gameaniamtion.vars[1]:
+            gameaniamtion.vars[0] = gameaniamtion.vars[2]
+
+        return True
+
+            
 
 class Tree(GameItem):
     def __init__(self):
         GameItem.__init__(self)
         self.sprite = pygame.Surface((112, 112))
         self.sprite = self.sprite.convert_alpha(self.sprite)
+        self.sprite.fill((0, 0, 0, 0))
+
         self.sprite.blit(image.load("./assets/Decors.png"),
                          (0, 0), (0, 0, 112, 112))
-        self.transparent_fix()
         self.x = WIDTH + random.randint(0, 300)
         self.y = HEIGHT - 350
 
-    def transparent_fix(self):
-        for x in range(self.sprite.get_width()):
-            for y in range(self.sprite.get_height()):
-                if self.sprite.get_at((x, y)) == (0, 0, 0, 255):
-                    self.sprite.set_at((x, y), (0, 0, 0, 0))
 
     def draw(self, delta, renderer):
         self.texture(renderer, self.sprite, [
@@ -561,7 +601,7 @@ class GameConsole:
             if t == int or t == str or t == float or t == bool:
                valid.append(var)
 
-        while self.active:
+        while self.active and self.game.active:
             os.system('cls')
             # sys.stdout.write("\r")
             for var in valid:
@@ -573,7 +613,7 @@ class GameConsole:
             
 
     def start(self):
-        while self.active:
+        while self.active and self.game.active:
             if self.livedebug:
                 self.live()
             else:
