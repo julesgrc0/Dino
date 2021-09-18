@@ -24,7 +24,10 @@ class DinoStates:
     HIT_BASE = 13
     HIT = 17
 
-    CROUCH_BASE = 17
+    JUMP_CROUCH_BASE = 17
+    JUMP_CROUCH = 19
+
+    CROUCH_BASE = 19
     CROUCH = 24
 
 
@@ -92,7 +95,7 @@ class TileIndex:
 
 
 class Dino(GameItem):
-    def __init__(self, args):
+    def __init__(self, args: list[str]):
         GameItem.__init__(self)
 
         self.dino_types = ["doux", "mort", "tard", "vita"]
@@ -183,38 +186,36 @@ class Dino(GameItem):
             "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
         self.load_tiles(image.load("./assets/Tileset.png"))
 
-        self.playintro_sound()
+        self.play_intro_sound()
         self.select_sound = mixer.Sound("./music/select.mp3")
+        self.s_coin = mixer.Sound("./music/coin.mp3")
 
-    def setmario_mode(self):
-        self.mario_mode = True
-        self.start_animation.vars[0] = 3
-        coin = mixer.Sound("./music/coin.mp3")
-        coin.set_volume(0.5)
-        coin.play()
-
-    def bool_animation_end(self, gameaniamtion):
+#
+# Animation update
+#
+    def bool_animation_end(self, gameaniamtion: GameAnimation):
         gameaniamtion.vars[0] = not gameaniamtion.vars[0]
         return True
 
-    def int_animation_min(self, gameaniamtion):
+    def start_animation_min(self, gameaniamtion: GameAnimation):
         gameaniamtion.vars[0] -= 1
         if gameaniamtion.vars[0] < 0:
             gameaniamtion.vars[1] = not gameaniamtion.vars[1]
+            self.start_game_play()
         return True
 
-    def int_animation_add(self, gameaniamtion):
+    def int_animation_add(self, gameaniamtion: GameAnimation):
         gameaniamtion.vars[0] += 1
         if gameaniamtion.vars[0] >= gameaniamtion.vars[1]:
             gameaniamtion.vars[0] = gameaniamtion.vars[2]
 
         return True
 
-    def playintro_sound(self):
-        s_intro = mixer.Sound("./music/intro.wav")
-        s_intro.play()
 
-    def load_tiles(self, image):
+#
+# Load sprites
+# 
+    def load_tiles(self, image: pygame.Surface):
         for x in range(8):
             for y in range(6):
                 tmp = pygame.Surface((16, 16))
@@ -225,7 +226,7 @@ class Dino(GameItem):
                 if tmp.get_at((8, 8)) != (0, 0, 0, 255):
                     self.tile_textures.append(tmp)
 
-    def load_dino(self, image):
+    def load_dino(self, image: pygame.Surface):
         self.player_textures.clear()
 
         for x in range(24):
@@ -238,17 +239,51 @@ class Dino(GameItem):
 
         pygame.display.set_icon(self.player_textures[0])
 
-    def change_state(self, state, base):
-        self.state = state
-        self.state_base = base
 
-        self.player_animation.vars[0] = self.state_base
-        self.player_animation.vars[1] = self.state
-        self.player_animation.vars[2] = self.state_base
+#
+# Play Sound Effects
+#
+    def start_walk_songs(self):
+        walk1 = mixer.Sound("./music/walk1.wav")
+        walk1.set_volume(0.2)
 
-    def startgame(self):
+        walk2 = mixer.Sound("./music/walk2.wav")
+        walk2.set_volume(0.2)
+
+        for i in range(3):
+            walk = mixer.Sound("./music/walk{0}.wav".format(i+1))
+            if walk == 2:
+                walk.set_volume(0.3)
+            else:
+                walk.set_volume(0.2)
+
+            mixer.Channel(4+i).play(walk, -1)
+
+    def play_intro_sound(self):
+        s_intro = mixer.Sound("./music/intro.wav")
+        mixer.Channel(2).play(s_intro)
+
+    def play_coin_song(self):
+        self.s_coin.set_volume(0.3)
+        mixer.Channel(1).play(self.s_coin)
+
+    def set_mario_mode(self):
+        self.mario_mode = True
+        self.start_animation.vars[0] = 3
+        coin = mixer.Sound("./music/coin.mp3")
+        coin.set_volume(0.5)
+        coin.play()
+
+
+#
+# Game start event
+#
+    def start_game_counter(self):
         self.start = True
         self.start_animation.vars[1] = True
+        # mixer.music.load("./music/walk1.wav")
+        # mixer.music.set_volume(0.5)
+        # mixer.music.play(-1)
 
         for i in range(6):
             self.rnd_box.append([
@@ -262,53 +297,27 @@ class Dino(GameItem):
         if self.mario_mode:
             mario_start = mixer.Sound("./music/start.wav")
             mario_start.set_volume(0.5)
-            mario_start.play()
+            mixer.Channel(3).play(mario_start)
         else:
-            mixer.Sound("./music/go.mp3").play()
+            mixer.Channel(3).play(mixer.Sound("./music/go.mp3"))
 
         gameDinoEvent.emit("game.inputsave")
 
-    def before_start(self, delta, input):
-        if not self.start:
-            if input.ispress(pygame.K_m):
-                self.setmario_mode()
-            if input.ispress(pygame.K_SPACE):
-                self.startgame()
-            if input.ispress(pygame.K_LEFT):
-                self.name_animation.vars[0] = True
-                self.name_animation.time = 0
+    def start_game_play(self):
+        mouse.set_visible(1)
+        mouse.set_cursor(pygame.SYSTEM_CURSOR_CROSSHAIR)
 
-                self.dino_index -= 1
-                if self.dino_index < 0:
-                    self.dino_index = len(self.dino_types)-1
+        self.start_walk_songs()
 
-                self.select_sound.play()
-                self.load_dino(image.load(
-                    "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
 
-            if input.ispress(pygame.K_RIGHT):
-
-                self.name_animation.vars[0] = True
-                self.name_animation.time = 0
-
-                self.dino_index += 1
-                if self.dino_index >= len(self.dino_types):
-                    self.dino_index = 0
-
-                self.select_sound.play()
-                self.load_dino(image.load(
-                    "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
-            if input.ismove():
-                self.spacebase_animation.vars[0] = True
-                self.spacebase_animation.time = 0
-
-    def update(self, delta, input):
+#
+# Update Game
+#
+    def update(self, delta: float, input: GameInput):
         if not self.init_animation.vars[0]:
-            self.before_start(delta, input)
+            self.menu_selection_update(delta, input)
 
             if self.start:
-                if input.ispress(pygame.K_UP) or input.ispress(pygame.K_SPACE):
-                    pass
 
                 if input.ispress(pygame.K_DOWN):
                     if self.state != DinoStates.CROUCH:
@@ -332,12 +341,12 @@ class Dino(GameItem):
         # print("\r UPS: {0}".format(
         #     int(1/(delta if delta != 0 else 1))), end='')
 
-    def update_icon(self, delta):
+    def update_icon(self, delta: float):
         if self.icon_animation.update(delta, self.int_animation_add):
             pygame.display.set_icon(
                 self.player_textures[self.icon_animation.vars[0]])
 
-    def update_player(self, delta):
+    def update_player(self, delta: float):
         if self.start:
             self.update_icon(delta)
             if not self.start_animation.vars[1]:
@@ -369,21 +378,69 @@ class Dino(GameItem):
 
                 i = 0
                 for c in self.coins:
-                    if self.x >= c.x:
+                    if self.x >= c.x+50:
                         del self.coins[i]
                         self.coin += 1
-                        i -= 1 
-                    i+=1
+                        self.play_coin_song()
+                        i -= 1
+                    i += 1
 
                 if len(self.coins) != 2:
                     for k in range(2 - len(self.coins)):
-                        self.coins.append(Coin(random.randint(0,(WIDTH*3) + (self.game_speed * 2))))
+                        self.coins.append(
+                            Coin(random.randint(0, (WIDTH*3) + (self.game_speed * 2))))
             else:
-                self.start_animation.update(delta, self.int_animation_min)
+                self.start_animation.update(delta, self.start_animation_min)
         else:
             self.player_animation.update(delta, self.int_animation_add)
 
-    def draw_menu(self, renderer):
+    def menu_selection_update(self, delta: float, input: GameInput):
+        if not self.start:
+            if input.ispress(pygame.K_m):
+                self.set_mario_mode()
+            if input.ispress(pygame.K_SPACE):
+                self.start_game_counter()
+            if input.ispress(pygame.K_LEFT):
+                self.name_animation.vars[0] = True
+                self.name_animation.time = 0
+
+                self.dino_index -= 1
+                if self.dino_index < 0:
+                    self.dino_index = len(self.dino_types)-1
+
+                self.select_sound.play()
+                self.load_dino(image.load(
+                    "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
+
+            if input.ispress(pygame.K_RIGHT):
+
+                self.name_animation.vars[0] = True
+                self.name_animation.time = 0
+
+                self.dino_index += 1
+                if self.dino_index >= len(self.dino_types):
+                    self.dino_index = 0
+
+                self.select_sound.play()
+                self.load_dino(image.load(
+                    "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
+            if input.ismove():
+                self.spacebase_animation.vars[0] = True
+                self.spacebase_animation.time = 0
+
+    def change_state(self, state: DinoStates, base: DinoStates):
+        self.state = state
+        self.state_base = base
+
+        self.player_animation.vars[0] = self.state_base
+        self.player_animation.vars[1] = self.state
+        self.player_animation.vars[2] = self.state_base
+
+
+#
+# Draw Game
+#
+    def draw_menu(self, renderer: pygame.Surface):
         self.texture(renderer, self.player_textures[self.player_animation.vars[0]], [
             self.x, self.y], [100, 100])
 
@@ -408,7 +465,7 @@ class Dino(GameItem):
             self.text(renderer, self.dino_types[self.dino_index].capitalize(), [
                 170, 150], 25, (30, 30, 30), True)
 
-    def draw_game(self, renderer, delta):
+    def draw_game(self, renderer: pygame.Surface, delta: float):
         for x in range((WIDTH//self.tilesize)*2):
             self.texture(renderer, self.tile_textures[TileIndex.GRASS], [
                 x * self.tilesize + self.move_x, HEIGHT - self.margin], [self.tilesize, self.tilesize])
@@ -417,18 +474,18 @@ class Dino(GameItem):
                 self.texture(renderer, self.tile_textures[TileIndex.GROUND_TEXTURED], [
                     x * self.tilesize + self.move_x, HEIGHT - (y * self.tilesize)], [self.tilesize, self.tilesize])
 
-        for i in self.rnd_box:     
+        for i in self.rnd_box:
             self.texture(renderer,
                          self.tile_textures[TileIndex.GROUND_TEXTURED_2],
-                    [i[0] * self.tilesize + self.move_x,
-                        HEIGHT - (i[1] * self.tilesize)],
-                    [self.tilesize, self.tilesize])
+                         [i[0] * self.tilesize + self.move_x,
+                          HEIGHT - (i[1] * self.tilesize)],
+                         [self.tilesize, self.tilesize])
 
             self.texture(renderer,
-                self.tile_textures[TileIndex.GROUND_TEXTURED_2],
+                         self.tile_textures[TileIndex.GROUND_TEXTURED_2],
                          [(i[0] + (WIDTH//self.tilesize)) * self.tilesize +
-                 self.move_x, HEIGHT - (i[1] * self.tilesize)],
-                [self.tilesize, self.tilesize])
+                          self.move_x, HEIGHT - (i[1] * self.tilesize)],
+                         [self.tilesize, self.tilesize])
 
         self.tree.draw(delta, renderer)
         for c in self.coins:
@@ -437,7 +494,7 @@ class Dino(GameItem):
         self.texture(renderer, self.player_textures[self.player_animation.vars[0]], [
                      30, HEIGHT - (self.margin + self.player_size-self.player_margin)], [self.player_size, self.player_size])
 
-    def draw(self, delta, renderer):
+    def draw(self, delta: float, renderer: pygame.Surface):
         if self.init_animation.vars[0]:
             color_value = (self.init_animation.time * 255 /
                            self.init_animation.max_duration)
@@ -488,7 +545,7 @@ class Dino(GameItem):
 
 
 class Coin(GameItem):
-    def __init__(self,x):
+    def __init__(self, x: int):
         GameItem.__init__(self)
         tmp = image.load("./assets/MonedaD.png")
 
@@ -509,14 +566,14 @@ class Coin(GameItem):
             sprite.blit(tmp, (0, 0), (x * 16, 0, 16, 16))
             self.sprites.append(sprite)
 
-    def __str__(self): 
+    def __str__(self):
         return "x={0} y={1} animation_index={2}".format(self.x, self.y, self.coin_animation.vars[0])
 
-    def draw(self, delta, renderer):
+    def draw(self, delta: float, renderer: pygame.Surface):
         self.texture(renderer, self.sprites[self.coin_animation.vars[0]], [
                      self.x, self.y], [30, 30])
 
-    def update(self, delta, dino):
+    def update(self, delta: float, dino: Dino):
         self.x -= dino.game_speed * (delta/10)
         if (self.x + self.sprites[0].get_width()*2) < 0:
             self.x = WIDTH + random.randint(0, dino.game_speed * 1.5)
@@ -543,11 +600,11 @@ class Tree(GameItem):
         self.x = WIDTH + random.randint(0, 300)
         self.y = HEIGHT - 350
 
-    def draw(self, delta, renderer):
+    def draw(self, delta: float, renderer: pygame.Surface):
         self.texture(renderer, self.sprite, [
                      self.x, self.y], [200, 200])
 
-    def update(self, delta, dino):
+    def update(self, delta: float, dino: Dino):
         self.x -= dino.game_speed * (delta/10)
         if (self.x + self.sprite.get_width()*2) < 0:
             self.x = WIDTH + random.randint(0, 300)
@@ -558,7 +615,6 @@ class GameConsole:
         self.game = game
         self.active = True
         self.livedebug = False
-        
 
     def run(self):
         threading.Thread(target=self.start).start()
@@ -586,14 +642,18 @@ class GameConsole:
 
                 for var in vars:
                     print(var, type(getattr(dino, var)))
+            elif cmd == "start":
+                os.system("{0} {1} {2}".format(sys.executable,
+                          __file__, " ".join(sys.argv[1:])))
             elif cmd == "var_live" and len(parts) >= 3:
-                self.live_duration( parts[1], float(parts[2]))
+                self.live_duration(parts[1], float(parts[2]))
             elif cmd == "var_get" and len(parts) >= 2:
                 name = parts[1]
                 try:
                     value = getattr(dino, name)
                     if type(value) is list:
-                        print("{0} (len={2}){1}".format(name, "".join(["\n"+str(item) for item in value]),len(value)))
+                        print("{0} (len={2}){1}".format(name, "".join(
+                            ["\n"+str(item) for item in value]), len(value)))
                     else:
                         print("{0} = {1}".format(name, value))
                 except:
@@ -614,7 +674,8 @@ class GameConsole:
                         t = type(value)
                         if t == int or t == str or t == float or t == bool:
                             print("{0} = {1}".format(var, value))
-    def live_duration(self,name,s_duration):
+
+    def live_duration(self, name: str, s_duration: float):
         dino = self.getDino()
         start = time.time()
         while True:
@@ -633,6 +694,7 @@ class GameConsole:
                 print("\"{0}\" not found".format(name))
                 break
             time.sleep(0.1)
+
     def live(self):
         dino = self.getDino()
         vars = [attr for attr in dir(dino) if not callable(
@@ -652,7 +714,7 @@ class GameConsole:
             sys.stdout.write("\n")
             sys.stdout.flush()
 
-            time.sleep(0.1)
+            time.sleep(0.01)
 
     def start(self):
         while self.active and self.game.active:
@@ -663,7 +725,7 @@ class GameConsole:
                 self.interaction(user_input)
 
 
-def main(args):
+def main(args: list[str]):
     game = GameMain(size=[WIDTH, HEIGHT], title="Dino Game")
     console = GameConsole(game)
 
