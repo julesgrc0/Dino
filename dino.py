@@ -337,7 +337,7 @@ class Dino(GameItem):
                                           DinoStates.CROUCH_BASE)
                 elif self.state == DinoStates.CROUCH:
                     self.change_state(DinoStates.RUN, DinoStates.RUN_BASE)
-
+            
             self.update_player(delta)
 
         if self.spacebase_animation.vars[0]:
@@ -509,13 +509,85 @@ class Tree(GameItem):
             self.x = WIDTH  + random.randint(0,300)
 
 
+
+class GameConsole:
+    def __init__(self, game: GameMain):
+        self.game = game
+        self.active = True
+        self.livedebug = False
+
+    def run(self):
+        threading.Thread(target=self.start).start()
+
+    def getDino(self) -> Dino:
+        return self.game.gameItems[0]
+
+    def interaction(self, s: str):
+        parts = s.split(" ")
+        dino = self.getDino()
+
+        if len(parts) >= 1:
+            cmd = parts[0]
+            if cmd == "echo":
+                for p in parts[1:]:
+                    print(p,end=' ')
+                print("")
+            elif cmd == "clear":
+                os.system('cls')
+            elif cmd == "exit":
+                self.active = False
+            elif cmd == "select":
+                print(dino.dino_types[dino.dino_index])
+            elif cmd == "debug":
+                if len(parts) >= 2 and parts[1] == "live":
+                    self.livedebug = True
+                else:
+                    vars = [attr for attr in dir(dino) if not callable(
+                        getattr(dino, attr)) and not attr.startswith("__")]
+
+                    for var in vars:
+                        value = getattr(dino, var)
+                        t = type(value)
+                        if t == int or t == str or t == float or t == bool:
+                            print("{0} = {1}".format(var, value))
     
+    def live(self):
+        dino = self.getDino()
+        vars = [attr for attr in dir(dino) if not callable(getattr(dino, attr)) and not attr.startswith("__")]
+
+        valid = []
+        for var in vars:
+            t = type(getattr(dino, var))
+            if t == int or t == str or t == float or t == bool:
+               valid.append(var)
+
+        while self.active:
+            os.system('cls')
+            # sys.stdout.write("\r")
+            for var in valid:
+                sys.stdout.write("{0}={1}\n".format(var, getattr(dino, var)))
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+
+            time.sleep(0.1)
+            
+
+    def start(self):
+        while self.active:
+            if self.livedebug:
+                self.live()
+            else:
+                user_input = str(input(">"))
+                self.interaction(user_input)
 
 def main(args):
     game = GameMain(size=[WIDTH, HEIGHT], title="Dino Game")
+    console = GameConsole(game)
+
     os.system('cls')
 
     game.input.save = False
+    
 
     @gameDinoEvent.on("game.inputsave")
     def onsave():
@@ -523,6 +595,7 @@ def main(args):
 
     game.add_item(Dino(args))
 
+    console.run()
     game.run(False)
     return 0
 
