@@ -559,11 +559,12 @@ class CircleTouch(GameItem):
         if self.time >= 100:
             self.delete = True
 
-        if input.isclicked() and mouse.get_pos() == (self.x, self.y):
+        if input.isclicked() and self.in_surface(mouse.get_pos()):
             self.delete = True
             self.point = True
 
-        
+    def in_surface(self,pos: Tuple[int,int]) -> bool:
+        return False
 
 class Coin(GameItem):
     def __init__(self, x: int):
