@@ -543,6 +543,27 @@ class Dino(GameItem):
 
                 self.draw_menu(renderer)
 
+class CircleTouch(GameItem):
+    def __init__(self):
+        GameItem.__init__(self)
+        self.time = 0
+        self.delete = False
+        self.point = False
+
+    def draw(self,delta: float, renderer: pygame.Surface):
+        if not self.delete:
+            pass
+
+    def update(self, delta: float,input: GameInput):
+        self.time += delta * 10
+        if self.time >= 100:
+            self.delete = True
+
+        if input.isclicked() and mouse.get_pos() == (self.x, self.y):
+            self.delete = True
+            self.point = True
+
+        
 
 class Coin(GameItem):
     def __init__(self, x: int):

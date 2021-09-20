@@ -1,4 +1,5 @@
 import threading
+from typing import Tuple
 import pygame
 from pygame import draw, display, image, event, mixer, font, transform
 import time
@@ -26,7 +27,8 @@ class GameInput:
     def __init__(self):
         self.keys = []
         self.move = False
-        self.events = None
+        self.click = False
+        self.events: list[event.Event] = []
         self.save = True
     
 
@@ -41,10 +43,11 @@ class GameInput:
             i += 1
         return find
 
-    def update(self,events):
+    def update(self,events : list[event.Event]):
         self.events = events
         if self.save:
             self.move = False
+            self.click = False
             for evt in self.events:
                 if evt.type == pygame.MOUSEMOTION:
                     self.move = True
@@ -55,7 +58,15 @@ class GameInput:
                 if evt.type == pygame.KEYDOWN:
                     if not self.setkey_value(evt.key, True):
                         self.keys.append([evt.key, True])
-        
+
+    def isclicked(self):
+        for evt in self.events:
+                if evt.type == pygame.MOUSEBUTTONUP:
+                    if self.save:
+                        self.click = True
+                    return True
+        return False
+
     def ismove(self):
         if self.save:
             return self.move
