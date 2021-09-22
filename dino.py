@@ -165,6 +165,13 @@ class Dino(GameItem):
         self.circles_animation.max_duration = 100
         self.circles_animation.vars.append(True)
 
+        self.score_animation = GameAnimation()
+        self.score_animation.max_duration = 4
+        self.score_animation.vars.append(False)
+        self.score_animation.vars.append(25)
+        self.score_animation.vars.append(30)
+        self.score_animation.vars.append(25)
+
         self.x = (WIDTH - 150)/2
         self.y = (HEIGHT - 240)
 
@@ -201,6 +208,13 @@ class Dino(GameItem):
 #
 # Animation update
 #
+    def bool_int_animation_add(self, gameaniamtion: GameAnimation):
+        gameaniamtion.vars[1] += 1
+        if gameaniamtion.vars[1] >= gameaniamtion.vars[2]:
+            gameaniamtion.vars[0] = not gameaniamtion.vars[0]
+            gameaniamtion.vars[1] = gameaniamtion.vars[3]
+        return True
+
     def bool_animation_end(self, gameaniamtion: GameAnimation):
         gameaniamtion.vars[0] = not gameaniamtion.vars[0]
         return True
@@ -394,8 +408,11 @@ class Dino(GameItem):
                     self.move_x = 0
 
                 self.player_animation.update(delta, self.int_animation_add)
-
                 self.circles_animation.update(delta, self.bool_animation_end)
+
+                if self.score_animation.vars[0]:
+                    self.score_animation.update(
+                        delta, self.bool_int_animation_add)
 
                 if len(self.circles) != 0:
                     circ_index = 0
@@ -407,7 +424,7 @@ class Dino(GameItem):
                                 if self.circles[circ_index].circle_id == self.circles_id:
                                     self.score += 10
 
-                                # TODO animate score
+                                self.score_animation.vars[0] = True
                             del self.circles[circ_index]
                             circ_index -= 1
 
@@ -601,8 +618,10 @@ class Dino(GameItem):
                     self.texture(renderer, self.backgrounds[2], [
                         0 + self.move_back_x2, 0], [400, 400])
 
+
                     self.text(renderer, "Score {0}".format(self.score), [
-                        10, 10], 25, (30, 30, 30), False)
+                        10, 10], self.score_animation.vars[1], (30, 30, 30), False)
+
                     self.text(renderer, "Coin {0}".format(self.coin), [
                         10, 40], 20, (30, 30, 30), False)
 
