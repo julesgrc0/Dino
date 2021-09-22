@@ -435,9 +435,13 @@ class Dino(GameItem):
                 if self.circles_animation.vars[0]:
                     self.circles_animation.vars[0] = False
 
-                    if self.circles_id >= 100 and len(self.circles) == 0:
+                    if self.circles_id >= 100:
+                        self.circles.clear()
                         self.circles_id = 0
-                        # TODO song + flash animation
+
+                        xp = mixer.Sound("./music/xp.wav")
+                        xp.set_volume(0.4)
+                        mixer.Channel(2).play(xp)
                     else:
                         if len(self.circles) < 3:
                             positions = []
@@ -677,9 +681,15 @@ class CircleTouch(GameItem):
         if not self.delete:
             self.circle_rgba(renderer, (40, 40, 40, 150),
                              (self.x, self.y), self.radius+30, 2)
+
             color = (40, 40, 40, 150)
             if current_id == self.circle_id:
                 color = (255, 138, 5, 150)
+                if self.in_surface(mouse.get_pos()):
+                    color = (255, 180, 5, 150)
+            elif self.in_surface(mouse.get_pos()):
+                color = (100,100,100,150)
+
             self.circle_rgba(renderer, color,
                              (self.x, self.y), self.click_radius, 80)
 
