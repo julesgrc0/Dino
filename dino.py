@@ -191,7 +191,8 @@ class Dino(GameItem):
 
         self.tree = Tree()
         self.coins = [Coin(WIDTH*2), Coin(WIDTH)]
-
+        
+        self.show_circles = True
         self.circles_id = 0
         self.circles: list[CircleTouch] = []
 
@@ -385,8 +386,9 @@ class Dino(GameItem):
                 for c in self.coins:
                     c.update(delta, self)
 
-                for c in self.circles:
-                    c.update(delta, input)
+                if self.show_circles:
+                    for c in self.circles:
+                        c.update(delta, input)
 
                 self.game_time += delta * 10
                 if self.game_time >= 80:
@@ -414,69 +416,70 @@ class Dino(GameItem):
                     self.score_animation.update(
                         delta, self.bool_int_animation_add)
 
-                if len(self.circles) != 0:
-                    circ_index = 0
-                    while True:
-                        if self.circles[circ_index].delete:
-                            if self.circles[circ_index].point:
-                                self.score += 10
-
-                                if self.circles[circ_index].circle_id == self.circles_id:
+                if self.show_circles:
+                    if len(self.circles) != 0:
+                        circ_index = 0
+                        while True:
+                            if self.circles[circ_index].delete:
+                                if self.circles[circ_index].point:
                                     self.score += 10
 
-                                self.score_animation.vars[0] = True
-                            del self.circles[circ_index]
-                            circ_index -= 1
+                                    if self.circles[circ_index].circle_id == self.circles_id:
+                                        self.score += 10
 
-                        circ_index += 1
-                        if circ_index >= len(self.circles):
-                            break
+                                    self.score_animation.vars[0] = True
+                                del self.circles[circ_index]
+                                circ_index -= 1
 
-                if self.circles_animation.vars[0]:
-                    self.circles_animation.vars[0] = False
+                            circ_index += 1
+                            if circ_index >= len(self.circles):
+                                break
 
-                    if self.circles_id >= 100:
-                        self.circles.clear()
-                        self.circles_id = 0
+                    if self.circles_animation.vars[0]:
+                        self.circles_animation.vars[0] = False
 
-                        xp = mixer.Sound("./music/xp.wav")
-                        xp.set_volume(0.4)
-                        mixer.Channel(2).play(xp)
-                    else:
-                        if len(self.circles) < 3:
-                            positions = []
-                            for c in self.circles:
-                                positions.append([c.x,c.y,True])
+                        if self.circles_id >= 100:
+                            self.circles.clear()
+                            self.circles_id = 0
 
-                            def generate_position(pos):
-                                margin_w = 100
-                                margin_h = 100
-                                res = [random.randint(margin_w, WIDTH),
-                                       random.randint(margin_h, HEIGHT), False]
-                                if len(pos) == 0:
+                            xp = mixer.Sound("./music/xp.wav")
+                            xp.set_volume(0.4)
+                            mixer.Channel(2).play(xp)
+                        else:
+                            if len(self.circles) < 3:
+                                positions = []
+                                for c in self.circles:
+                                    positions.append([c.x,c.y,True])
+
+                                def generate_position(pos):
+                                    margin_w = 100
+                                    margin_h = 100
+                                    res = [random.randint(margin_w, WIDTH),
+                                        random.randint(margin_h, HEIGHT), False]
+                                    if len(pos) == 0:
+                                        return res
+                                    valid = False
+                                    while not valid:
+                                        for p in pos:
+                                            dx = p[0] - res[0]
+                                            dy = p[1] - res[1]
+                                            distance = sqrt(dx * dx + dy * dy)
+                                            
+                                            if distance < CircleTouch.base_radius*2:
+                                                res = [random.randint(margin_w, WIDTH),
+                                                    random.randint(margin_h, HEIGHT), False]
+                                            else:
+                                                valid = True
                                     return res
-                                valid = False
-                                while not valid:
-                                    for p in pos:
-                                        dx = p[0] - res[0]
-                                        dy = p[1] - res[1]
-                                        distance = sqrt(dx * dx + dy * dy)
-                                        
-                                        if distance < CircleTouch.base_radius*2:
-                                            res = [random.randint(margin_w, WIDTH),
-                                                   random.randint(margin_h, HEIGHT), False]
-                                        else:
-                                            valid = True
-                                return res
 
-                            for k in range(3 - len(self.circles)):
-                                positions.append(generate_position(positions))
+                                for k in range(3 - len(self.circles)):
+                                    positions.append(generate_position(positions))
 
-                            for position in positions:
-                                if not position[2]:
-                                    self.circles_id += 1
-                                    self.circles.append(CircleTouch(
-                                        self.circles_id, position))
+                                for position in positions:
+                                    if not position[2]:
+                                        self.circles_id += 1
+                                        self.circles.append(CircleTouch(
+                                            self.circles_id, position))
                 i = 0
                 for c in self.coins:
                     if self.x >= c.x+50:
@@ -596,9 +599,9 @@ class Dino(GameItem):
 
         self.texture(renderer, self.player_textures[self.player_animation.vars[0]], [
                      30, HEIGHT - (self.margin + self.player_size-self.player_margin)], [self.player_size, self.player_size])
-
-        for c in self.circles:
-            c.draw(delta, renderer,self.circles_id)
+        if self.show_circles:
+            for c in self.circles:
+                c.draw(delta, renderer,self.circles_id)
 
     def draw(self, delta: float, renderer: pygame.Surface):
         if self.init_animation.vars[0]:
@@ -796,6 +799,36 @@ class GameConsole:
     def getDino(self) -> Dino:
         return self.game.gameItems[0]
 
+    def print_help(self):
+        print("Commands List\n")
+
+        print("__System__")
+        print("\techo (str...")
+        print("\thelp")
+        print("\tclear")
+        print("\texit")
+        print("\tstart")
+
+        print("__Debug__")
+        print("\tvar_names")
+        print("\tvar_live <name> <duration>")
+        print("\tdebug [live]")
+
+        print("__Dino__")
+        print("\ttime")
+        print("\tmenu_select")
+        print("\tcoin")
+        print("\tcircle")
+        print("\tscore")
+
+        print("__Console__")
+        print("\t$ = execute the last input")
+        print("\t?$ = get the last input")
+        print("\t@ = get input histoiry")
+        print("\t?@ = clear input histoiry")
+        
+
+
     def interaction(self, s: str):
         parts = s.split(" ")
         dino = self.getDino()
@@ -806,8 +839,12 @@ class GameConsole:
                 for p in parts[1:]:
                     print(p, end=' ')
                 print("")
+            elif cmd == "help":
+                self.print_help()
             elif cmd == "clear":
                 os.system('cls')
+            elif cmd == "circle":
+                dino.show_circles = not dino.show_circles
             elif cmd == "exit":
                 self.active = False
             elif cmd == "var_names":
@@ -836,6 +873,10 @@ class GameConsole:
                 print(dino.dino_types[dino.dino_index])
             elif cmd == "time":
                 print("{0}s".format(time.time() - dino.game_time))
+            elif cmd == "coin":
+                print("Coins: {0}".format(dino.coin))
+            elif cmd == "score":
+                print("Score: {0}".format(dino.score))
             elif cmd == "debug":
                 if len(parts) >= 2 and parts[1] == "live":
                     self.livedebug = True
@@ -891,12 +932,28 @@ class GameConsole:
             time.sleep(0.01)
 
     def start(self):
+        save_input = [""]
+        actions = ["@","?@","$","?$"]
+        
         while self.active and self.game.active:
             if self.livedebug:
                 self.live()
             else:
                 user_input = str(input(">"))
-                self.interaction(user_input)
+                if user_input in actions:
+                    if user_input == "@":
+                        for inp in save_input:
+                            print(inp)
+                    elif user_input == "?@":
+                        save_input.clear()
+                        save_input.append("")
+                    elif user_input == "$":
+                        self.interaction(save_input[-1])
+                    elif user_input == "?$":
+                        print(save_input[-1])
+                else:
+                    save_input.append(user_input)
+                    self.interaction(save_input[-1])
 
 
 def main(args: list[str]):
