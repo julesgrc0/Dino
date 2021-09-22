@@ -1,3 +1,4 @@
+from math import sqrt
 from utils.engine import *
 import sys
 import os
@@ -160,6 +161,10 @@ class Dino(GameItem):
         self.spacebase_animation.max_duration = 600
         self.spacebase_animation.vars.append(True)
 
+        self.circles_animation = GameAnimation()
+        self.circles_animation.max_duration = 100
+        self.circles_animation.vars.append(True)
+
         self.x = (WIDTH - 150)/2
         self.y = (HEIGHT - 240)
 
@@ -179,6 +184,9 @@ class Dino(GameItem):
 
         self.tree = Tree()
         self.coins = [Coin(WIDTH*2), Coin(WIDTH)]
+
+        self.circles_id = 0
+        self.circles: list[CircleTouch] = []
 
         mouse.set_visible(0)
 
@@ -214,7 +222,9 @@ class Dino(GameItem):
 
 #
 # Load sprites
-# 
+#
+
+
     def load_tiles(self, image: pygame.Surface):
         for x in range(8):
             for y in range(6):
@@ -243,6 +253,8 @@ class Dino(GameItem):
 #
 # Play Sound Effects
 #
+
+
     def start_walk_songs(self):
         walk1 = mixer.Sound("./music/walk1.wav")
         walk1.set_volume(0.2)
@@ -278,6 +290,8 @@ class Dino(GameItem):
 #
 # Game start event
 #
+
+
     def start_game_counter(self):
         self.start = True
         self.start_animation.vars[1] = True
@@ -313,6 +327,8 @@ class Dino(GameItem):
 #
 # Update Game
 #
+
+
     def update(self, delta: float, input: GameInput):
         if not self.init_animation.vars[0]:
             self.menu_selection_update(delta, input)
@@ -326,7 +342,7 @@ class Dino(GameItem):
                 elif self.state == DinoStates.CROUCH:
                     self.change_state(DinoStates.RUN, DinoStates.RUN_BASE)
 
-            self.update_player(delta)
+            self.update_player(delta, input)
 
         if self.spacebase_animation.vars[0]:
             self.spacebase_animation.update(
@@ -346,7 +362,7 @@ class Dino(GameItem):
             pygame.display.set_icon(
                 self.player_textures[self.icon_animation.vars[0]])
 
-    def update_player(self, delta: float):
+    def update_player(self, delta: float, input: GameInput):
         if self.start:
             self.update_icon(delta)
             if not self.start_animation.vars[1]:
@@ -354,6 +370,9 @@ class Dino(GameItem):
                 self.tree.update(delta, self)
                 for c in self.coins:
                     c.update(delta, self)
+
+                for c in self.circles:
+                    c.update(delta, input)
 
                 self.game_time += delta * 10
                 if self.game_time >= 80:
@@ -376,6 +395,67 @@ class Dino(GameItem):
 
                 self.player_animation.update(delta, self.int_animation_add)
 
+                self.circles_animation.update(delta, self.bool_animation_end)
+
+                if len(self.circles) != 0:
+                    circ_index = 0
+                    while True:
+                        if self.circles[circ_index].delete:
+                            if self.circles[circ_index].point:
+                                self.score += 10
+
+                                if self.circles[circ_index].circle_id == self.circles_id:
+                                    self.score += 10
+
+                                # TODO animate score
+                            del self.circles[circ_index]
+                            circ_index -= 1
+
+                        circ_index += 1
+                        if circ_index >= len(self.circles):
+                            break
+
+                if self.circles_animation.vars[0]:
+                    self.circles_animation.vars[0] = False
+
+                    if self.circles_id >= 100 and len(self.circles) == 0:
+                        self.circles_id = 0
+                        # TODO song + flash animation
+                    else:
+                        if len(self.circles) < 3:
+                            positions = []
+                            for c in self.circles:
+                                positions.append([c.x,c.y,True])
+
+                            def generate_position(pos):
+                                margin_w = 100
+                                margin_h = 100
+                                res = [random.randint(margin_w, WIDTH),
+                                       random.randint(margin_h, HEIGHT), False]
+                                if len(pos) == 0:
+                                    return res
+                                valid = False
+                                while not valid:
+                                    for p in pos:
+                                        dx = p[0] - res[0]
+                                        dy = p[1] - res[1]
+                                        distance = sqrt(dx * dx + dy * dy)
+                                        
+                                        if distance < CircleTouch.base_radius*2:
+                                            res = [random.randint(margin_w, WIDTH),
+                                                   random.randint(margin_h, HEIGHT), False]
+                                        else:
+                                            valid = True
+                                return res
+
+                            for k in range(3 - len(self.circles)):
+                                positions.append(generate_position(positions))
+
+                            for position in positions:
+                                if not position[2]:
+                                    self.circles_id += 1
+                                    self.circles.append(CircleTouch(
+                                        self.circles_id, position))
                 i = 0
                 for c in self.coins:
                     if self.x >= c.x+50:
@@ -440,6 +520,8 @@ class Dino(GameItem):
 #
 # Draw Game
 #
+
+
     def draw_menu(self, renderer: pygame.Surface):
         self.texture(renderer, self.player_textures[self.player_animation.vars[0]], [
             self.x, self.y], [100, 100])
@@ -494,6 +576,9 @@ class Dino(GameItem):
         self.texture(renderer, self.player_textures[self.player_animation.vars[0]], [
                      30, HEIGHT - (self.margin + self.player_size-self.player_margin)], [self.player_size, self.player_size])
 
+        for c in self.circles:
+            c.draw(delta, renderer,self.circles_id)
+
     def draw(self, delta: float, renderer: pygame.Surface):
         if self.init_animation.vars[0]:
             color_value = (self.init_animation.time * 255 /
@@ -543,28 +628,66 @@ class Dino(GameItem):
 
                 self.draw_menu(renderer)
 
+
 class CircleTouch(GameItem):
-    def __init__(self):
+    base_radius = 60 # 80
+    click_radius = 20 # 30
+    text_size = 20 # 40
+
+    def __init__(self, circle_id=1, position=[0, 0]):
         GameItem.__init__(self)
-        self.time = 0
+
+        self.circle_id = circle_id
+        self.x = position[0]
+        self.y = position[1]
+
+        self.radius = self.base_radius
+        self.time = random.randint(0,30)
+        self.end_time = random.randint(40, 80) + self.time
         self.delete = False
         self.point = False
 
-    def draw(self,delta: float, renderer: pygame.Surface):
+    def circle_rgba(self, renderer: pygame.Surface, color: Tuple[int, int, int, int], center: Tuple[int, int], radius: int, width: int):
+        target = pygame.Rect(center, (0, 0)).inflate((radius * 2, radius * 2))
+        circle = pygame.Surface(target.size, pygame.SRCALPHA)
+
+        draw.circle(circle, color, (radius, radius), radius, width)
+        renderer.blit(circle, target)
+
+    def draw(self, delta: float, renderer: pygame.Surface,current_id: int):
         if not self.delete:
-            pass
+            self.circle_rgba(renderer, (40, 40, 40, 150),
+                             (self.x, self.y), self.radius+30, 2)
+            color = (40, 40, 40, 150)
+            if current_id == self.circle_id:
+                color = (255, 138, 5, 150)
+            self.circle_rgba(renderer, color,
+                             (self.x, self.y), self.click_radius, 80)
 
-    def update(self, delta: float,input: GameInput):
-        self.time += delta * 10
-        if self.time >= 100:
-            self.delete = True
+            self.text(renderer, str(self.circle_id), [
+                      self.x, self.y], self.text_size, (200, 200, 200))
 
-        if input.isclicked() and self.in_surface(mouse.get_pos()):
-            self.delete = True
-            self.point = True
+    def update(self, delta: float, input: GameInput):
+        if not self.delete:
+            self.time += delta * 10
+            self.radius = self.base_radius - ((self.time*self.base_radius)/self.end_time)
 
-    def in_surface(self,pos: Tuple[int,int]) -> bool:
+            if self.time >= self.end_time:
+                self.delete = True
+
+            if input.isclicked() and self.in_surface(mouse.get_pos()):
+                self.delete = True
+                self.point = True
+
+    def in_surface(self, pos: Tuple[int, int]) -> bool:
+        dx = pos[0] - self.x
+        dy = pos[1] - self.y
+        distance = sqrt(dx * dx + dy * dy)
+
+        if distance < self.click_radius:
+            return True
         return False
+
 
 class Coin(GameItem):
     def __init__(self, x: int):
@@ -647,7 +770,7 @@ class GameConsole:
     def interaction(self, s: str):
         parts = s.split(" ")
         dino = self.getDino()
-
+        
         if len(parts) >= 1:
             cmd = parts[0]
             if cmd == "echo":
