@@ -195,6 +195,7 @@ class Dino(GameItem):
         self.show_circles = True
         self.circles_id = 0
         self.circles: list[CircleTouch] = []
+        self.circle_song = mixer.Sound("./music/circle.wav")
 
         mouse.set_visible(0)
 
@@ -269,7 +270,7 @@ class Dino(GameItem):
 # Play Sound Effects
 #
 
-
+    
     def start_walk_songs(self):
         walk1 = mixer.Sound("./music/walk1.wav")
         walk1.set_volume(0.2)
@@ -479,7 +480,7 @@ class Dino(GameItem):
                                     if not position[2]:
                                         self.circles_id += 1
                                         self.circles.append(CircleTouch(
-                                            self.circles_id, position))
+                                            self.circles_id, position, self.circle_song))
                 i = 0
                 for c in self.coins:
                     if self.x >= c.x+50:
@@ -660,12 +661,14 @@ class CircleTouch(GameItem):
     click_radius = 20 # 30
     text_size = 20 # 40
 
-    def __init__(self, circle_id=1, position=[0, 0]):
+    def __init__(self, circle_id=1, position=[0, 0],song = None):
         GameItem.__init__(self)
 
         self.circle_id = circle_id
         self.x = position[0]
         self.y = position[1]
+        self.sound:mixer.Sound = song
+        self.sound.set_volume(0.3)
 
         self.radius = self.base_radius
         self.time = random.randint(0,30)
@@ -706,10 +709,12 @@ class CircleTouch(GameItem):
 
             if self.time >= self.end_time:
                 self.delete = True
-
+                
             if input.isclicked() and self.in_surface(mouse.get_pos()):
                 self.delete = True
                 self.point = True
+                mixer.Channel(3).play(self.sound)
+                
 
     def in_surface(self, pos: Tuple[int, int]) -> bool:
         dx = pos[0] - self.x
