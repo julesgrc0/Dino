@@ -96,7 +96,7 @@ class GameItem:
         self.alive = True
         self.sprites = []
     
-    def texture(self,renderer, image, position, size):
+    def texture(self,renderer: pygame.Surface, image:pygame.Surface, position:list[int], size:list[int]):
         rect = pygame.Rect(
             position[0], position[1], size[0], size[1])
         surf = transform.scale(image, (size[0], size[1]))

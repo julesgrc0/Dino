@@ -193,9 +193,23 @@ class Dino(GameItem):
         self.coins = [Coin(WIDTH*2), Coin(WIDTH)]
         
         self.show_circles = True
+        self.sound_active = True
+
         self.circles_id = 0
         self.circles: list[CircleTouch] = []
         self.circle_song = mixer.Sound("./music/circle.wav")
+
+        self.circle_btn= MenuSwitchButton(
+                (10,10),
+                (image.load("./assets/btn_2.png"),image.load("./assets/btn_3.png")),
+                [30,30],
+                True)
+        self.sound_btn = MenuSwitchButton(
+                (WIDTH- 40,10),
+                (image.load("./assets/btn_0.png"),
+                 image.load("./assets/btn_1.png")),
+                [30,30],
+                True)
 
         mouse.set_visible(0)
 
@@ -269,38 +283,43 @@ class Dino(GameItem):
 #
 # Play Sound Effects
 #
-
+    def switch_sound(self):
+        mixer.Sound("./music/song_active.mp3").play()
     
     def start_walk_songs(self):
-        walk1 = mixer.Sound("./music/walk1.wav")
-        walk1.set_volume(0.2)
+        if self.sound_active:
+            walk1 = mixer.Sound("./music/walk1.wav")
+            walk1.set_volume(0.2)
 
-        walk2 = mixer.Sound("./music/walk2.wav")
-        walk2.set_volume(0.2)
+            walk2 = mixer.Sound("./music/walk2.wav")
+            walk2.set_volume(0.2)
 
-        for i in range(3):
-            walk = mixer.Sound("./music/walk{0}.wav".format(i+1))
-            if walk == 2:
-                walk.set_volume(0.3)
-            else:
-                walk.set_volume(0.2)
+            for i in range(3):
+                walk = mixer.Sound("./music/walk{0}.wav".format(i+1))
+                if walk == 2:
+                    walk.set_volume(0.3)
+                else:
+                    walk.set_volume(0.2)
 
-            mixer.Channel(4+i).play(walk, -1)
+                mixer.Channel(4+i).play(walk, -1)
 
     def play_intro_sound(self):
-        s_intro = mixer.Sound("./music/intro.wav")
-        mixer.Channel(2).play(s_intro)
+        if self.sound_active:
+            s_intro = mixer.Sound("./music/intro.wav")
+            mixer.Channel(2).play(s_intro)
 
     def play_coin_song(self):
-        self.s_coin.set_volume(0.3)
-        mixer.Channel(1).play(self.s_coin)
+        if self.sound_active:
+            self.s_coin.set_volume(0.3)
+            mixer.Channel(1).play(self.s_coin)
 
     def set_mario_mode(self):
         self.mario_mode = True
         self.start_animation.vars[0] = 3
         coin = mixer.Sound("./music/coin.mp3")
         coin.set_volume(0.5)
-        coin.play()
+        if self.sound_active:
+            coin.play()
 
 
 #
@@ -323,13 +342,13 @@ class Dino(GameItem):
             self.rnd_box_max = max(self.rnd_box_max, self.rnd_box[-1][0])
 
         self.change_state(DinoStates.RUN, DinoStates.RUN_BASE)
-
-        if self.mario_mode:
-            mario_start = mixer.Sound("./music/start.wav")
-            mario_start.set_volume(0.5)
-            mixer.Channel(3).play(mario_start)
-        else:
-            mixer.Channel(3).play(mixer.Sound("./music/go.mp3"))
+        if self.sound_active:
+            if self.mario_mode:
+                mario_start = mixer.Sound("./music/start.wav")
+                mario_start.set_volume(0.5)
+                mixer.Channel(3).play(mario_start)
+            else:
+                mixer.Channel(3).play(mixer.Sound("./music/go.mp3"))
 
         gameDinoEvent.emit("game.inputsave")
 
@@ -442,10 +461,10 @@ class Dino(GameItem):
                         if self.circles_id >= 100:
                             self.circles.clear()
                             self.circles_id = 0
-
-                            xp = mixer.Sound("./music/xp.wav")
-                            xp.set_volume(0.4)
-                            mixer.Channel(2).play(xp)
+                            if self.sound_active:
+                                xp = mixer.Sound("./music/xp.wav")
+                                xp.set_volume(0.4)
+                                mixer.Channel(2).play(xp)
                         else:
                             if len(self.circles) < 3:
                                 positions = []
@@ -480,7 +499,7 @@ class Dino(GameItem):
                                     if not position[2]:
                                         self.circles_id += 1
                                         self.circles.append(CircleTouch(
-                                            self.circles_id, position, self.circle_song))
+                                            self.circles_id, position, self.circle_song if self.sound_active else None))
                 i = 0
                 for c in self.coins:
                     if self.x >= c.x+50:
@@ -501,6 +520,25 @@ class Dino(GameItem):
 
     def menu_selection_update(self, delta: float, input: GameInput):
         if not self.start:
+            diff = self.circle_btn.button_active
+            self.circle_btn.update(delta,input)
+            if diff != self.circle_btn.button_active:
+                self.show_circles = self.circle_btn.button_active
+                if self.sound_active:
+                    self.switch_sound()
+
+            diff = self.sound_btn.button_active
+            self.sound_btn.update(delta,input)
+            if diff != self.sound_btn.button_active:
+                self.sound_active = self.sound_btn.button_active
+                self.switch_sound()
+
+            if self.sound_btn.in_surface(mouse.get_pos(), self.sound_btn.size[0]*3) or self.circle_btn.in_surface(mouse.get_pos(), self.circle_btn.size[0]*3):
+                mouse.set_visible(1)
+                mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+            else:
+                mouse.set_visible(0)
+
             if input.ispress(pygame.K_m):
                 self.set_mario_mode()
             if input.ispress(pygame.K_SPACE):
@@ -512,8 +550,8 @@ class Dino(GameItem):
                 self.dino_index -= 1
                 if self.dino_index < 0:
                     self.dino_index = len(self.dino_types)-1
-
-                self.select_sound.play()
+                if self.sound_active:
+                    self.select_sound.play()
                 self.load_dino(image.load(
                     "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
 
@@ -525,8 +563,8 @@ class Dino(GameItem):
                 self.dino_index += 1
                 if self.dino_index >= len(self.dino_types):
                     self.dino_index = 0
-
-                self.select_sound.play()
+                if self.sound_active:
+                    self.select_sound.play()
                 self.load_dino(image.load(
                     "./assets/DinoSprites - {0}.png".format(self.dino_types[self.dino_index])))
             if input.ismove():
@@ -561,12 +599,15 @@ class Dino(GameItem):
 
         if self.spacebase_animation.vars[0]:
             self.text(renderer, "Press [SPACE] to start the game", [
-                200, 50], 25, (30, 30, 30), True)
+                200, 70], 25, (30, 30, 30), True)
 
         self.text(renderer, "<", [
                   100, 200], 40, (30, 30, 30), True)
         self.text(renderer, ">", [
             250, 200], 40, (30, 30, 30), True)
+
+        self.circle_btn.draw(renderer)
+        self.sound_btn.draw(renderer)
 
         if self.name_animation.vars[0]:
             self.text(renderer, self.dino_types[self.dino_index].capitalize(), [
@@ -656,6 +697,50 @@ class Dino(GameItem):
                 self.draw_menu(renderer)
 
 
+class MenuSwitchButton(GameItem):
+
+    def __init__(self,position: Tuple[int, int],states:Tuple[pygame.Surface,pygame.Surface],size:list[int]=[50,50],active:bool = False,key = None):
+        GameItem.__init__(self)
+        self.button_active = active
+        
+        self.x = position[0]
+        self.y = position[1]
+        self.size = size
+        
+        self.key_action = None
+        if key != None:
+            self.key_action = key
+            
+
+        self.sprites.append(states[0])
+        self.sprites.append(states[1])
+
+    def draw(self, renderer: pygame.Surface):
+        if self.button_active:
+            self.texture(renderer,self.sprites[0],[self.x,self.y],self.size)
+        else:
+            self.texture(renderer,self.sprites[1],[self.x,self.y],self.size)
+
+
+
+    def update(self, delta: float, input: GameInput):
+
+        if input.isclicked() and self.in_surface(mouse.get_pos(),self.size[0]):
+            self.button_active = not self.button_active
+
+        if self.key_action != None:
+            if input.ispress(self.key_action):
+                self.button_active = not self.button_active
+
+    def in_surface(self, pos: Tuple[int, int],size:int) -> bool:
+        dx = pos[0] - self.x
+        dy = pos[1] - self.y
+        distance = sqrt(dx * dx + dy * dy)
+
+        if distance < size:
+            return True
+        return False
+
 class CircleTouch(GameItem):
     base_radius = 60 # 80
     click_radius = 20 # 30
@@ -667,8 +752,11 @@ class CircleTouch(GameItem):
         self.circle_id = circle_id
         self.x = position[0]
         self.y = position[1]
-        self.sound:mixer.Sound = song
-        self.sound.set_volume(0.3)
+
+        self.sound = None
+        if song != None:
+            self.sound:mixer.Sound = song
+            self.sound.set_volume(0.3)
 
         self.radius = self.base_radius
         self.time = random.randint(0,30)
@@ -711,9 +799,11 @@ class CircleTouch(GameItem):
                 self.delete = True
                 
             if input.isclicked() and self.in_surface(mouse.get_pos()):
+                
                 self.delete = True
                 self.point = True
-                mixer.Channel(3).play(self.sound)
+                if self.sound != None:
+                    mixer.Channel(3).play(self.sound)
                 
 
     def in_surface(self, pos: Tuple[int, int]) -> bool:
@@ -824,6 +914,7 @@ class GameConsole:
         print("\tmenu_select")
         print("\tcoin")
         print("\tcircle")
+        print("\tsound")
         print("\tscore")
 
         print("__Console__")
@@ -848,6 +939,8 @@ class GameConsole:
                 self.print_help()
             elif cmd == "clear":
                 os.system('cls')
+            elif cmd == "sound":
+                dino.sound_active = not dino.sound_active
             elif cmd == "circle":
                 dino.show_circles = not dino.show_circles
             elif cmd == "exit":
